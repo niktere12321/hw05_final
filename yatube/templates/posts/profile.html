@@ -11,19 +11,18 @@
     {% if user.username != author.username %}
   <li class="list-group-item">
   {% if follower %}
-    <a
-      class="btn btn-lg btn-light"
-      href="{% url 'posts:profile_unfollow' author.username %}" role="button"
+    <a class="btn btn-lg btn-light"
+		href="{% url 'posts:profile_unfollow' author.username %}" role="button"
     >
-      Отписаться
+    Отписаться
     </a>
   {% else %}
-      <a
-        class="btn btn-lg btn-primary"
-        href="{% url 'posts:profile_follow' author.username %}" role="button"
-      >
-        Подписаться
-      </a>
+    <a
+    class="btn btn-lg btn-primary"
+    href="{% url 'posts:profile_follow' author.username %}" role="button"
+    >
+    Подписаться
+    </a>
    {% endif %}
    {% endif %}
 </div>
