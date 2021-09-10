@@ -317,7 +317,9 @@ class FollowTest(TestCase):
         """Авторизованный пользователь может
         подписываться на других пользователей."""
         self.authorized_client_1.get(reverse(
-                'posts:profile_follow', args=[FollowTest.author_2.username]))
+            'posts:profile_follow',
+            args=[FollowTest.author_2.username])
+        )
         self.assertEqual(Follow.objects.get(user=FollowTest.follower,
                                             author=FollowTest.author_2).author,
                          FollowTest.author_2)
@@ -326,7 +328,9 @@ class FollowTest(TestCase):
         """Неавторизованный не может
         подписываться на других пользователей."""
         self.guest_client.get(reverse(
-                'posts:profile_follow', args=[FollowTest.author_2.username]))
+            'posts:profile_follow',
+            args=[FollowTest.author_2.username])
+        )
         self.assertFalse(
             Follow.objects.filter(user=FollowTest.follower,
                                   author=FollowTest.author_2).exists()
@@ -335,9 +339,10 @@ class FollowTest(TestCase):
     def test_user_can_unfollow_author(self):
         """Авторизованный пользователь может
         удалять других пользователей из подписок."""
-        self.authorized_client_1.get(
-                reverse('posts:profile_unfollow',
-                        args=[FollowTest.author_2.username]))
+        self.authorized_client_1.get(reverse(
+            'posts:profile_unfollow',
+            args=[FollowTest.author_2.username])
+        )
         self.assertFalse(Follow.objects.filter(
             user=FollowTest.follower, author=FollowTest.author_2).exists())
 
