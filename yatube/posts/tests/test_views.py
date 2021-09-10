@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from django import forms
 from django.conf import settings
@@ -8,9 +9,56 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import Follow, Group, Post
+from posts.models import Comment, Follow, Group, Post
 
 User = get_user_model()
+
+
+class CommentTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.author = User.objects.create(username='Тестовый автор')
+        cls.user = User.objects.create(username='Тестовый пользователь')
+        cls.post = Post.objects.create(
+            author=cls.author,
+            text='Тестовый текст',
+        )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.author,
+            text='Тестовый комментарий'
+        )
+
+    def setUp(self):
+        self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(CommentTest.user)
+        self.form_data = {'post': 'Тестовый комментарий'}
+
+    def unauthorized_user_cant_comment(self):
+        """Не авторизированный пользователь не может комментировать посты."""
+        response = self.guest_client.post(reverse(
+            'add_comment', args=[CommentTest.author.username,
+                                 CommentTest.post.id]))
+        self.assertRedirects(response, reverse(
+            'post', args=[CommentTest.author.username,
+                          CommentTest.post.id]))
+
+    def authorized_user_can_comment(self):
+        """Только авторизированный пользователь может комментировать посты."""
+        self.authorized_client.post(reverse(
+            'add_comment',
+            args=[CommentTest.author.username, CommentTest.post.id]),
+            data=self.form_data, follow=True)
+        self.assertTrue(
+            Comment.objects.filter(post='Тестовый комментарий').exists())
+        self.assertTrue(
+            Comment.objects.get(post='Тестовый комментарий').text,
+            CommentTest.comment.text)
+        self.assertTrue(
+            Comment.objects.get(post='Тестовый комментарий').author,
+            CommentTest.comment.author)
 
 
 @override_settings(MEDIA_ROOT=os.path.join(settings.BASE_DIR,
@@ -20,7 +68,7 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(
-            username='test_user', 
+            username='test_user',
         )
         cls.group_with_post = Group.objects.create(
             title='Test Group with post',
@@ -45,6 +93,11 @@ class PostPagesTests(TestCase):
             group=cls.group_with_post,
             image=uploaded
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def setUp(self):
         # Создаём неавторизованный клиент
@@ -263,9 +316,7 @@ class FollowTest(TestCase):
     def test_user_can_follow_author(self):
         """Авторизованный пользователь может
         подписываться на других пользователей."""
-        if not Follow.objects.filter(author=FollowTest.author_2,
-                                     user=FollowTest.follower).exists():
-            self.authorized_client_1.get(reverse(
+        self.authorized_client_1.get(reverse(
                 'posts:profile_follow', args=[FollowTest.author_2.username]))
         self.assertEqual(Follow.objects.get(user=FollowTest.follower,
                                             author=FollowTest.author_2).author,
@@ -274,9 +325,7 @@ class FollowTest(TestCase):
     def test_user_cant_follow_author(self):
         """Неавторизованный не может
         подписываться на других пользователей."""
-        if not Follow.objects.filter(author=FollowTest.author_2,
-                                     user=FollowTest.follower).exists():
-            self.guest_client.get(reverse(
+        self.guest_client.get(reverse(
                 'posts:profile_follow', args=[FollowTest.author_2.username]))
         self.assertFalse(
             Follow.objects.filter(user=FollowTest.follower,
@@ -286,24 +335,59 @@ class FollowTest(TestCase):
     def test_user_can_unfollow_author(self):
         """Авторизованный пользователь может
         удалять других пользователей из подписок."""
-        if Follow.objects.filter(author=FollowTest.author_2,
-                                 user=FollowTest.follower).exists():
-            self.authorized_client_1.get(
+        self.authorized_client_1.get(
                 reverse('posts:profile_unfollow',
                         args=[FollowTest.author_2.username]))
         self.assertFalse(Follow.objects.filter(
             user=FollowTest.follower, author=FollowTest.author_2).exists())
 
-    def new_post_appears_tape_follower(self):
-        """Новая запись пользователя появляется в ленте тех,
-        кто на него подписан."""
-        response = self.authorized_client_1.get(reverse('posts:follow_index'))
-        self.assertEqual(response.context.get('page_obj')[0].author_1,
-                         FollowTest.author_1)
+    def test_profile_follow(self):
+        """Проверка системы подписок profile_follow"""
+        unsubscribed_user = FollowTest.follower
+        subscribed_user = FollowTest.author_1
 
-    def new_post_not_appears_tape_not_follower(self):
-        """Новая запись пользователя не появляется в ленте тех,
-        кто не подписан на него."""
-        response = self.authorized_client_1.get(reverse('posts:follow_index'))
-        self.assertEqual(response.context.get('page_obj')[0].author_1,
-                         FollowTest.author_1)
+        self.assertFalse(
+            Follow.objects.filter(
+                author=unsubscribed_user,
+                user=subscribed_user
+            ).exists(),
+            'Объект Follow уже существует, тест test_profile_follow '
+            '- неисправен'
+        )
+
+        authorized_subscribed = Client()
+        authorized_subscribed.force_login(subscribed_user)
+        authorized_subscribed.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': unsubscribed_user})
+        )
+
+        self.assertTrue(
+            Follow.objects.filter(
+                author=unsubscribed_user,
+                user=subscribed_user
+            ).exists()
+        )
+
+    def test_profile_unfollow(self):
+        """Проверка системы подписок profile_unfollow"""
+        unsubscribed_user = FollowTest.follower
+        subscribed_user = FollowTest.author_1
+        Follow.objects.create(author=unsubscribed_user,
+                              user=subscribed_user)
+
+        authorized_subscribed = Client()
+        authorized_subscribed.force_login(subscribed_user)
+        authorized_subscribed.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': unsubscribed_user})
+        )
+
+        self.assertFalse(
+            Follow.objects.filter(
+                author=unsubscribed_user,
+                user=subscribed_user
+            ).exists()
+        )

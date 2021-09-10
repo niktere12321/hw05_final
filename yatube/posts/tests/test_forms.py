@@ -3,6 +3,7 @@ import tempfile
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -55,6 +56,7 @@ class PostFormTests(TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        cache.clear()
         self.guest_client = Client()
         self.author_client = Client()
         self.author_client.force_login(PostFormTests.author)
@@ -66,7 +68,8 @@ class PostFormTests(TestCase):
         form_data = {
             'text': 'new text',
             'group': PostFormTests.group.pk,
-            'image': PostFormTests.uploaded
+            'image': PostFormTests.uploaded,
+            'author': PostFormTests.author
         }
         # Отправляем POST-запрос
         response = self.author_client.post(
@@ -91,7 +94,7 @@ class PostFormTests(TestCase):
         self.assertEqual(last_object.group.id, form_data['group'])
         self.assertEqual(last_object.image.name, 'posts/small.gif')
 
-    def test_create_posts(self):
+    def test_create_edit_posts(self):
         """Валидная форма изменяет запись в Post"""
         post_id = PostFormTests.post.pk
         form_data = {
