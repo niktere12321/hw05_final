@@ -20,7 +20,7 @@ class PostPagesTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(
-            username='test_user',
+            username='test_user', 
         )
         cls.group_with_post = Group.objects.create(
             title='Test Group with post',
