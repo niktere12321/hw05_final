@@ -1,4 +1,5 @@
 # Проект "Yatube"
+
 ## Cоциальная сеть для публикации личных дневников  
 Сервис позволяет:
 - регистрироваться, восстанавливать пароль по почте
@@ -13,3 +14,41 @@
 ## Технологический стек:
 - Python3
 - Django
+
+---
+## Запуск проекта
+
+- Клонируйте репозиторий и перейдите в папку проекта:
+```bash
+git clone https://github.com/niktere12321/hw05_final.git 
+```
+
+- Установите и активируйте виртуальное окружение:
+```
+python3 -m venv venv
+```
+```
+source venv/Scripts/activate
+```
+- Установите зависимости из файла requirements.txt:
+```bash
+python3 -m pip install --upgrade pip
+```
+```bash
+pip install -r requirements.txt
+```
+
+Выполнить миграции:
+```bash
+python3 manage.py migrate
+```
+
+Запустить проект:
+```bash
+python3 manage.py runserver
+```
+
+---
+## Об авторе
+
+Терехов Никита Алексеевич 
